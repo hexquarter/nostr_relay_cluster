@@ -1,0 +1,73 @@
+services:
+  relay_a:
+    container_name: relay_a
+    image: strfry:latest
+    ports:
+      - "7447:7777"
+    volumes:
+      - ./config/strfry.conf:/etc/strfry.conf
+      - ./data/relay_a:/app/strfry-db
+      - ./config/relay_a_router.conf:/etc/strfry-router.conf
+      - ./scripts/start-node.sh:/app/start-node.sh
+    environment:
+      STRFRY_CONFIG: "/etc/strfry.conf"
+      SYNC_PEERS: "ws://relay_b:7777"
+      SYNC_REQUIRED: "false"
+      SYNC_INTERVAL_SECONDS: 10
+    networks:
+      - relay-network
+    entrypoint: ["/bin/bash", "/app/start-node.sh"]
+
+  relay_b:
+    container_name: relay_b
+    image: strfry:latest
+    ports:
+      - "7448:7777"
+    volumes:
+      - ./config/strfry.conf:/etc/strfry.conf
+      - ./data/relay_b:/app/strfry-db
+      - ./config/relay_b_router.conf:/etc/strfry-router.conf
+      - ./scripts/start-node.sh:/app/start-node.sh
+    environment:
+      STRFRY_CONFIG: "/etc/strfry.conf"
+      SYNC_PEERS: "ws://relay_a:7777"
+      SYNC_REQUIRED: "false"
+      SYNC_INTERVAL_SECONDS: 10
+    networks:
+      - relay-network
+    entrypoint: ["/bin/bash", "/app/start-node.sh"]
+
+  relay_c:
+    container_name: relay_c
+    image: strfry:latest
+    ports:
+      - "7449:7777"
+    volumes:
+      - ./config/strfry.conf:/etc/strfry.conf
+      - ./data/relay_c:/app/strfry-db
+      - ./config/relay_c_router.conf:/etc/strfry-router.conf
+      - ./scripts/start-node.sh:/app/start-node.sh
+    environment:
+      STRFRY_CONFIG: "/etc/strfry.conf"
+      SYNC_PEERS: "ws://relay_a:7777;ws://relay_b:7777"
+      SYNC_REQUIRED: "false"
+      SYNC_INTERVAL_SECONDS: 10
+    networks:
+      - relay-network
+    entrypoint: ["/bin/bash", "/app/start-node.sh"]
+
+  haproxy:
+    image: haproxy:3.2-alpine
+    depends_on:
+      - relay_a
+      - relay_b
+    ports:
+      - "7777:7777"
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - relay-network
+
+networks:
+  relay-network:
+    driver: bridge
